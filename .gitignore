@@ -1,2 +1,36 @@
+# Local Maven repo / tooling (project-scoped)
 .m2/
 .tools/
+
+# Maven / Java build
+**/target/
+*.class
+*.jar
+*.war
+*.ear
+hs_err_pid*
+replay_pid*
+
+# Package files
+*.nar
+
+# IDE
+.idea/
+*.iml
+.project
+.classpath
+.settings/
+.factorypath
+.sts4-cache
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs / temp
+*.log
+*.tmp
+*.temp
