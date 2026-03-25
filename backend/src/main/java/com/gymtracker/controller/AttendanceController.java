@@ -6,11 +6,14 @@ import java.time.YearMonth;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.gymtracker.dto.AttendanceRequest;
@@ -64,5 +67,20 @@ public class AttendanceController {
         attendanceRepository.findByUserAndAttendanceDateBetween(user, start, end)
                 .forEach(record -> attendanceMap.put(record.getAttendanceDate().toString(), record.isAttended()));
         return attendanceMap;
+    }
+
+    @DeleteMapping
+    @ResponseStatus(HttpStatus.OK)
+    public Map<String, Object> clearAttendance(@RequestParam LocalDate date, Principal principal) {
+        User user = userRepository.findByUsername(principal.getName())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        attendanceRepository.findByUserAndAttendanceDate(user, date)
+                .ifPresent(attendanceRepository::delete);
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("date", date);
+        response.put("message", "Attendance cleared");
+        return response;
     }
 }

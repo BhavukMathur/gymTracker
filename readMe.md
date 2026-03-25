@@ -22,14 +22,6 @@ Configured in `backend/src/main/resources/application.properties`:
 - password: `rootroot`
 - db: `gymtracker` (auto-created if not exists)
 
-## Run backend (global Maven)
-```bash
-cd backend
-mvn spring-boot:run
-```
-
-Backend URL: `http://localhost:8080`
-
 ## Run frontend (global Python)
 ```bash
 cd frontend
@@ -44,3 +36,11 @@ Frontend URL: `http://localhost:5500`
 - `POST /api/attendance` (Bearer token required)
   - body: `{ "date": "2026-03-24", "attended": true }`
 - `GET /api/attendance/month?year=2026&month=3` (Bearer token required)
+
+## Run backend (global Maven)
+```bash
+cd backend
+mvn spring-boot:run
+```
+
+Backend URL: `http://localhost:8080`
