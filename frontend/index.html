@@ -22,14 +22,20 @@
 
   <div id="loginCard" class="card">
     <h3>Login</h3>
-    <div class="row"><input id="username" value="demo" placeholder="Username"></div>
-    <div class="row"><input id="password" type="password" value="demo123" placeholder="Password"></div>
-    <div class="row"><button onclick="login()">Login</button></div>
+    <div class="row"><input id="username" placeholder="Username"></div>
+    <div class="row"><input id="password" type="password" placeholder="Password"></div>
+    <div class="row">
+      <button onclick="login()">Login</button>
+      <button onclick="register()">Register</button>
+    </div>
     <div id="loginMessage"></div>
   </div>
 
   <div id="attendanceCard" class="card hidden">
-    <h3>Mark Attendance</h3>
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+      <h3 style="margin:0;">Mark Attendance</h3>
+      <button onclick="logout()">Logout</button>
+    </div>
     <div class="row">
       <label>Month: <input type="month" id="monthPicker"></label>
       <button onclick="loadMonth()">Load</button>
@@ -38,6 +44,7 @@
     <div class="row">
       <button onclick="markAttendance(true)">Mark YES</button>
       <button onclick="markAttendance(false)">Mark NO</button>
+      <button onclick="clearAttendance()">Clear</button>
     </div>
     <div id="attendanceMessage"></div>
   </div>
@@ -70,6 +77,34 @@
       loadMonth();
     }
 
+    async function register() {
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+      const res = await fetch(`${API_BASE}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+      if (!res.ok) {
+        const msg = res.status === 409 ? "Username already taken" : "Registration failed";
+        document.getElementById("loginMessage").textContent = msg;
+        return;
+      }
+      document.getElementById("loginMessage").textContent = "Registered. Logging in...";
+      await login();
+    }
+
+    function logout() {
+      token = "";
+      selectedDate = null;
+      monthData = {};
+      document.getElementById("attendanceMessage").textContent = "";
+      document.getElementById("loginMessage").textContent = "";
+      document.getElementById("attendanceCard").classList.add("hidden");
+      document.getElementById("loginCard").classList.remove("hidden");
+      document.querySelectorAll(".day").forEach(d => d.classList.remove("selected"));
+    }
+
     async function loadMonth() {
       const [year, month] = document.getElementById("monthPicker").value.split("-").map(Number);
       const res = await fetch(`${API_BASE}/api/attendance/month?year=${year}&month=${month}`, {
@@ -89,6 +124,7 @@
         cell.className = "day";
         if (monthData[date] === true) cell.classList.add("yes");
         if (monthData[date] === false) cell.classList.add("no");
+        if (selectedDate === date) cell.classList.add("selected");
         cell.textContent = day;
         cell.onclick = () => selectDate(date, cell);
         calendar.appendChild(cell);
@@ -122,6 +158,25 @@
         document.getElementById("attendanceMessage").textContent = `Saved ${selectedDate} = ${attended ? "YES" : "NO"}`;
       } else {
         document.getElementById("attendanceMessage").textContent = "Failed to save attendance";
+      }
+    }
+
+    async function clearAttendance() {
+      if (!selectedDate) {
+        document.getElementById("attendanceMessage").textContent = "Select a date first";
+        return;
+      }
+      const res = await fetch(`${API_BASE}/api/attendance?date=${encodeURIComponent(selectedDate)}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        delete monthData[selectedDate];
+        const [year, month] = document.getElementById("monthPicker").value.split("-").map(Number);
+        renderCalendar(year, month);
+        document.getElementById("attendanceMessage").textContent = `Cleared ${selectedDate}`;
+      } else {
+        document.getElementById("attendanceMessage").textContent = "Failed to clear attendance";
       }
     }
   </script>
