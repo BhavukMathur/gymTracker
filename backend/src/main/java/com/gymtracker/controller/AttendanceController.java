@@ -22,10 +22,12 @@ import com.gymtracker.model.User;
 import com.gymtracker.repository.AttendanceRepository;
 import com.gymtracker.repository.UserRepository;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/attendance")
+@SecurityRequirement(name = "bearer-jwt")
 public class AttendanceController {
 
     private final UserRepository userRepository;
