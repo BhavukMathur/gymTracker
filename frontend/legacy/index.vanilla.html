@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gym Attendance Tracker</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 700px; margin: 30px auto; padding: 0 16px; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    .row { margin: 10px 0; }
+    input, button { padding: 8px; }
+    .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+    .day { border: 1px solid #ddd; border-radius: 6px; padding: 8px; text-align: center; }
+    .yes { background: #d1fae5; }
+    .no { background: #fee2e2; }
+    .selected { outline: 2px solid #2563eb; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h1>Gym Attendance Tracker</h1>
+
+  <div id="loginCard" class="card">
+    <h3>Login</h3>
+    <div class="row"><input id="username" placeholder="Username"></div>
+    <div class="row"><input id="password" type="password" placeholder="Password"></div>
+    <div class="row">
+      <button onclick="login()">Login</button>
+      <button onclick="register()">Register</button>
+    </div>
+    <div id="loginMessage"></div>
+  </div>
+
+  <div id="attendanceCard" class="card hidden">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+      <h3 style="margin:0;">Mark Attendance</h3>
+      <button onclick="logout()">Logout</button>
+    </div>
+    <div class="row">
+      <label>Month: <input type="month" id="monthPicker"></label>
+      <button onclick="loadMonth()">Load</button>
+    </div>
+    <div id="calendar" class="calendar"></div>
+    <div class="row">
+      <button onclick="markAttendance(true)">YES</button>
+      <button onclick="markAttendance(false)">NO</button>
+      <button onclick="clearAttendance()">Clear</button>
+    </div>
+    <div id="attendanceMessage"></div>
+  </div>
+
+  <script>
+    const API_BASE = "http://localhost:8080";
+    let token = "";
+    let selectedDate = null;
+    let monthData = {};
+
+    document.getElementById("monthPicker").value = new Date().toISOString().slice(0, 7);
+
+    async function login() {
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+      if (!res.ok) {
+        document.getElementById("loginMessage").textContent = "Login failed";
+        return;
+      }
+      const data = await res.json();
+      token = data.token;
+      document.getElementById("loginCard").classList.add("hidden");
+      document.getElementById("attendanceCard").classList.remove("hidden");
+      document.getElementById("loginMessage").textContent = "";
+      loadMonth();
+    }
+
+    async function register() {
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+      const res = await fetch(`${API_BASE}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+      if (!res.ok) {
+        const msg = res.status === 409 ? "Username already taken" : "Registration failed";
+        document.getElementById("loginMessage").textContent = msg;
+        return;
+      }
+      document.getElementById("loginMessage").textContent = "Registered. Logging in...";
+      await login();
+    }
+
+    function logout() {
+      token = "";
+      selectedDate = null;
+      monthData = {};
+      document.getElementById("attendanceMessage").textContent = "";
+      document.getElementById("loginMessage").textContent = "";
+      document.getElementById("attendanceCard").classList.add("hidden");
+      document.getElementById("loginCard").classList.remove("hidden");
+      document.querySelectorAll(".day").forEach(d => d.classList.remove("selected"));
+    }
+
+    async function loadMonth() {
+      const [year, month] = document.getElementById("monthPicker").value.split("-").map(Number);
+      const res = await fetch(`${API_BASE}/api/attendance/month?year=${year}&month=${month}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      monthData = res.ok ? await res.json() : {};
+      renderCalendar(year, month);
+    }
+
+    function renderCalendar(year, month) {
+      const calendar = document.getElementById("calendar");
+      calendar.innerHTML = "";
+      const days = new Date(year, month, 0).getDate();
+      for (let day = 1; day <= days; day++) {
+        const date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        const cell = document.createElement("div");
+        cell.className = "day";
+        if (monthData[date] === true) cell.classList.add("yes");
+        if (monthData[date] === false) cell.classList.add("no");
+        if (selectedDate === date) cell.classList.add("selected");
+        cell.textContent = day;
+        cell.onclick = () => selectDate(date, cell);
+        calendar.appendChild(cell);
+      }
+    }
+
+    function selectDate(date, cell) {
+      selectedDate = date;
+      document.querySelectorAll(".day").forEach(d => d.classList.remove("selected"));
+      cell.classList.add("selected");
+      document.getElementById("attendanceMessage").textContent = `Selected: ${date}`;
+    }
+
+    async function markAttendance(attended) {
+      if (!selectedDate) {
+        document.getElementById("attendanceMessage").textContent = "Select a date first";
+        return;
+      }
+      const res = await fetch(`${API_BASE}/api/attendance`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ date: selectedDate, attended })
+      });
+      if (res.ok) {
+        monthData[selectedDate] = attended;
+        const [year, month] = document.getElementById("monthPicker").value.split("-").map(Number);
+        renderCalendar(year, month);
+        document.getElementById("attendanceMessage").textContent = `Saved ${selectedDate} = ${attended ? "YES" : "NO"}`;
+      } else {
+        document.getElementById("attendanceMessage").textContent = "Failed to save attendance";
+      }
+    }
+
+    async function clearAttendance() {
+      if (!selectedDate) {
+        document.getElementById("attendanceMessage").textContent = "Select a date first";
+        return;
+      }
+      const res = await fetch(`${API_BASE}/api/attendance?date=${encodeURIComponent(selectedDate)}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        delete monthData[selectedDate];
+        const [year, month] = document.getElementById("monthPicker").value.split("-").map(Number);
+        renderCalendar(year, month);
+        document.getElementById("attendanceMessage").textContent = `Cleared ${selectedDate}`;
+      } else {
+        document.getElementById("attendanceMessage").textContent = "Failed to clear attendance";
+      }
+    }
+  </script>
+</body>
+</html>
