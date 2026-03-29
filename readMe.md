@@ -4,12 +4,13 @@ Simple working project with:
 - Spring Boot backend
 - JWT login
 - MySQL persistence
-- Plain frontend calendar UI
+- React (Vite) frontend; vanilla backup in `frontend/legacy/index.vanilla.html`
 
 ## Requirements
 - Java 17+ installed
 - Maven installed globally (`mvn --version`)
-- Python 3 installed (`python3 --version`)
+- Node.js 18+ and npm (for the React frontend)
+- Python 3 (optional; only for serving the vanilla backup)
 - MySQL running locally
 
 ## Default login
@@ -22,13 +23,31 @@ Configured in `backend/src/main/resources/application.properties`:
 - password: `rootroot`
 - db: `gymtracker` (auto-created if not exists)
 
-## Run frontend (global Python)
+## Run frontend (Node.js + npm)
 ```bash
 cd frontend
-python3 -m http.server 5500
+npm install
+npm run dev
 ```
 
-Frontend URL: `http://localhost:5500`
+Dev URL: `http://localhost:5173` (proxies `/api` to the backend on port 8080).
+
+Production build:
+```bash
+cd frontend
+npm run build
+npm run preview   # optional; serves dist/
+```
+
+Set `VITE_API_BASE` when the UI is not served with a dev proxy (e.g. `VITE_API_BASE=http://localhost:8080 npm run build`).
+
+### Vanilla backup (no build step)
+Open or serve `frontend/legacy/index.vanilla.html` (expects API at `http://localhost:8080`), e.g.:
+```bash
+cd frontend/legacy
+python3 -m http.server 5500
+```
+Then open `http://localhost:5500/index.vanilla.html`.
 
 ## API
 - `POST /api/auth/login`
