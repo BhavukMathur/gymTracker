@@ -55,12 +55,18 @@ Then open `http://localhost:5500/index.vanilla.html`.
 - `POST /api/attendance` (Bearer token required)
   - body: `{ "date": "2026-03-24", "attended": true }`
 - `GET /api/attendance/month?year=2026&month=3` (Bearer token required)
+- `GET /api/app/profile` — `{ "profile": "dev" }` or `"prod"` (no auth; used by the UI)
 
-## Run backend (global Maven)
+## Run backend
+**Profiles:** **dev** (default) turns on SQL logging; **prod** turns it off. Shared settings stay in `application.properties`; overrides are in `application-dev.properties` and `application-prod.properties`.
+
 ```bash
 cd backend
-mvn spring-boot:run
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
+mvn spring-boot:run -Dspring-boot.run.profiles=prod
 ```
+
+If you omit `-Dspring-boot.run.profiles`, the app uses the default profile **dev** (`spring.profiles.default`).
 
 Backend URL: `http://localhost:8080`
 

@@ -104,6 +104,7 @@ export default function App() {
   const [monthData, setMonthData] = useState({});
   const [calendarBusy, setCalendarBusy] = useState(false);
   const [calendarError, setCalendarError] = useState("");
+  const [serverProfile, setServerProfile] = useState("");
 
   const base = apiBase();
   const todayKey = getTodayDateKey();
@@ -386,6 +387,25 @@ export default function App() {
     void loadMonth();
   }, [token, viewYear, viewMonth, loadMonth]);
 
+  useEffect(() => {
+    if (!token) {
+      setServerProfile("");
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const res = await fetch(`${base}/api/app/profile`);
+      if (cancelled || !res.ok) return;
+      const data = await res.json();
+      if (!cancelled && typeof data.profile === "string") {
+        setServerProfile(data.profile);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token, base]);
+
   return (
     <div className={`app-shell ${loggedIn ? "app-shell--wide" : ""}`}>
       <header className="app-header">
@@ -450,6 +470,9 @@ export default function App() {
                 <p className="profile-level">
                   Level: {levelFromPresent(dashboardStats.present)}
                 </p>
+                {serverProfile ? (
+                  <p className="profile-env">profile={serverProfile}</p>
+                ) : null}
               </div>
 
               <div className="dash-card">
