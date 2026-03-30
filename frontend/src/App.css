@@ -222,6 +222,13 @@ input:focus {
   color: #6b7280;
 }
 
+.profile-env {
+  margin: 4px 0 0;
+  font-size: 0.8125rem;
+  font-family: ui-monospace, monospace;
+  color: #9ca3af;
+}
+
 .stat-grid {
   display: flex;
   flex-direction: column;
