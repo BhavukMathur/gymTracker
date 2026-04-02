@@ -1,0 +1,18 @@
+type AttendanceDay {
+    date: String!
+    attended: Boolean!
+}
+
+type AttendanceSavePayload {
+    date: String!
+    attended: Boolean!
+    message: String!
+}
+
+type Query {
+    attendanceMonth(year: Int!, month: Int!): [AttendanceDay!]!
+}
+
+type Mutation {
+    saveAttendance(date: String!, attended: Boolean!): AttendanceSavePayload!
+}
