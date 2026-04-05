@@ -59,7 +59,31 @@ Stack: **React (Vite) frontend**, **Spring Boot backend**, **MySQL**. CORS is al
 
 - **Backend image:** A multi-stage `Dockerfile` can compile with Maven and run the JAR in a slim JRE image. The same image runs locally and on **Docker-friendly** hosts (Render, Fly.io, Railway, Kubernetes, a VPS).
 - **Repeatable builds:** Less “works on my laptop” drift than ad hoc JDK installs on the server.
-- **Local full stack:** **`docker-compose`** can run **MySQL + Spring Boot** (and optionally a container serving the Vite `dist/`) with one command—good for onboarding and for running everything on **one VM** (e.g. a small cloud instance).
+- **Local full stack:** **`docker compose`** runs **three services** (frontend → backend → MySQL) in separate containers, matching a typical split deployment. This is **additive**: you can still run the frontend with npm, the backend with Maven, and MySQL on the host exactly as in `readMe.md`.
+
+**Compose (repo root)**
+
+```bash
+docker compose up --build
+```
+
+- UI: `http://localhost:${FRONTEND_HOST_PORT:-3000}` (nginx serving the Vite build).
+- API: `http://localhost:${BACKEND_HOST_PORT:-18080}` — **not** 8080 on purpose, so **`mvn spring-boot:run` can keep using 8080** while Compose is not running, or while you run both stacks on different API ports.
+- MySQL is **not** published to the host by default (avoids clashing with a local MySQL on port 3306). Override with Compose if you need host access.
+
+**Port cheat sheet:** Vite dev UI **5173** (proxies `/api` → **8080**); local Spring Boot **8080**; Dockerized API on the host **18080**; Dockerized UI **3000**.
+
+Optional environment variables (shell or `.env` next to `docker-compose.yml`): `MYSQL_ROOT_PASSWORD`, `MYSQL_DATABASE`, `APP_JWT_SECRET`, `VITE_API_BASE` (must match what the **browser** uses to reach the API, default `http://localhost:18080` with the default `BACKEND_HOST_PORT`), `FRONTEND_HOST_PORT`, `BACKEND_HOST_PORT`.
+
+**Kubernetes-style layout**
+
+Example manifests live under **`k8s/`** (one workload per tier: MySQL StatefulSet, backend Deployment, frontend Deployment). Build images from `backend/` and `frontend/` Dockerfiles, push or load them into your cluster, then apply:
+
+```bash
+kubectl apply -k k8s/
+```
+
+Edit `k8s/*secret*.yaml` for real passwords and JWT secret. Set **`VITE_API_BASE`** at **frontend image build time** to the public URL clients use to reach the API (Ingress, LoadBalancer, or `http://localhost:8080` when using `kubectl port-forward` on the backend Service).
 
 **What Docker does not replace by itself**
 
