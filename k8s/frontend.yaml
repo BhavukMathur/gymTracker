@@ -1,0 +1,36 @@
+# Build with the API URL the browser will use, e.g.:
+#   docker build -t gymtracker-frontend:latest --build-arg VITE_API_BASE=http://localhost:8080 ./frontend
+# After kubectl port-forward svc/backend 8080:8080, that URL works from the host browser.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: gymtracker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: gymtracker-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: gymtracker
+spec:
+  selector:
+    app: frontend
+  ports:
+    - port: 80
+      targetPort: 80
