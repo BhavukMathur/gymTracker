@@ -25,6 +25,7 @@ The sign-in UI is on the **home page** (`/`):
 
 | How you run the UI                                | Open in the browser                              |
 | ------------------------------------------------- | ------------------------------------------------ |
+| **`./run-local.sh`** (backend + Vite)             | [http://localhost:5173/](http://localhost:5173/) |
 | **npm** (`npm run dev`)                           | [http://localhost:5173/](http://localhost:5173/) |
 | **Docker Compose** (default `FRONTEND_HOST_PORT`) | [http://localhost:3000/](http://localhost:3000/) |
 
@@ -38,6 +39,16 @@ Configured in `backend/src/main/resources/application.properties`:
 - username: `root`
 - password: `rootroot`
 - db: `gymtracker` (auto-created if not exists)
+
+## Run locally (single command, no Docker)
+
+From the repository root, with MySQL already running:
+
+```bash
+./run-local.sh
+```
+
+This starts the Spring Boot API on port **8080**, then the Vite dev server; open [http://localhost:5173/](http://localhost:5173/). For backend-only or frontend-only, run `./run-local.sh --help`.
 
 ## Run frontend (Node.js + npm)
 
@@ -166,3 +177,7 @@ If you omit `-Dspring-boot.run.profiles`, the app uses the default profile **dev
 Backend URL: `http://localhost:8080`
 
 Swagger: `http://localhost:8080/swagger-ui/index.html#/auth-controller/login`
+
+## Logging and observability
+
+The backend uses SLF4J, Logback, servlet filters, MVC interceptors, AOP, Micrometer tracing, and Spring Boot Actuator together. See **[logging.md](logging.md)** for mechanisms, typical fields, and **sample log lines** from a real `./run-local.sh` run.
