@@ -2,7 +2,6 @@ package com.gymtracker.controller;
 
 import java.security.Principal;
 import java.time.LocalDate;
-import java.time.YearMonth;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -16,11 +15,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.gymtracker.dto.AttendanceRequest;
-import com.gymtracker.model.Attendance;
 import com.gymtracker.model.User;
-import com.gymtracker.repository.AttendanceRepository;
 import com.gymtracker.repository.UserRepository;
+import com.gymtracker.service.AttendanceService;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
@@ -30,45 +31,31 @@ import jakarta.validation.Valid;
 @SecurityRequirement(name = "bearer-jwt")
 public class AttendanceController {
 
-    private final UserRepository userRepository;
-    private final AttendanceRepository attendanceRepository;
+    private static final Logger log = LoggerFactory.getLogger(AttendanceController.class);
 
-    public AttendanceController(UserRepository userRepository, AttendanceRepository attendanceRepository) {
+    private final UserRepository userRepository;
+    private final AttendanceService attendanceService;
+
+    public AttendanceController(UserRepository userRepository, AttendanceService attendanceService) {
         this.userRepository = userRepository;
-        this.attendanceRepository = attendanceRepository;
+        this.attendanceService = attendanceService;
     }
 
     @PostMapping
     public Map<String, Object> saveAttendance(@Valid @RequestBody AttendanceRequest request, Principal principal) {
         User user = userRepository.findByUsername(principal.getName())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
-
-        Attendance attendance = attendanceRepository.findByUserAndAttendanceDate(user, request.getDate())
-                .orElseGet(Attendance::new);
-        attendance.setUser(user);
-        attendance.setAttendanceDate(request.getDate());
-        attendance.setAttended(request.isAttended());
-        attendanceRepository.save(attendance);
-
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("date", request.getDate());
-        response.put("attended", request.isAttended());
-        response.put("message", "Attendance saved");
-        return response;
+        log.info("[SLF4J] REST saveAttendance user={} date={} attended={}", principal.getName(), request.getDate(),
+                request.isAttended());
+        return attendanceService.saveAttendance(user, request);
     }
 
     @GetMapping("/month")
     public Map<String, Boolean> getMonthAttendance(@RequestParam int year, @RequestParam int month, Principal principal) {
         User user = userRepository.findByUsername(principal.getName())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
-        YearMonth yearMonth = YearMonth.of(year, month);
-        LocalDate start = yearMonth.atDay(1);
-        LocalDate end = yearMonth.atEndOfMonth();
-
-        Map<String, Boolean> attendanceMap = new LinkedHashMap<>();
-        attendanceRepository.findByUserAndAttendanceDateBetween(user, start, end)
-                .forEach(record -> attendanceMap.put(record.getAttendanceDate().toString(), record.isAttended()));
-        return attendanceMap;
+        log.info("[SLF4J] REST getMonthAttendance user={} year={} month={}", principal.getName(), year, month);
+        return attendanceService.getMonthAttendance(user, year, month);
     }
 
     @DeleteMapping
@@ -76,13 +63,7 @@ public class AttendanceController {
     public Map<String, Object> clearAttendance(@RequestParam LocalDate date, Principal principal) {
         User user = userRepository.findByUsername(principal.getName())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
-
-        attendanceRepository.findByUserAndAttendanceDate(user, date)
-                .ifPresent(attendanceRepository::delete);
-
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("date", date);
-        response.put("message", "Attendance cleared");
-        return response;
+        log.info("[SLF4J] REST clearAttendance user={} date={}", principal.getName(), date);
+        return attendanceService.clearAttendance(user, date);
     }
 }
