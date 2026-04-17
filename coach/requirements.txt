@@ -1,0 +1,9 @@
+# LangChain 1.x — OpenAI and/or Google Gemini
+fastapi>=0.115
+uvicorn[standard]>=0.32
+httpx>=0.27
+pydantic-settings>=2.6
+langchain>=1.0
+langchain-openai>=0.3
+langchain-google-genai>=2.0
+langchain-core>=0.3

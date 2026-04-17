@@ -634,3 +634,99 @@ input:focus {
 .message.error {
   color: #b91c1c;
 }
+
+.dash-card--coach .coach-lead {
+  margin: 0 0 10px;
+  font-size: 0.8125rem;
+  color: #6b7280;
+  line-height: 1.45;
+}
+
+.coach-feature-chips {
+  margin-bottom: 12px;
+}
+
+.coach-thread {
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 4px 2px 8px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.coach-hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #9ca3af;
+  line-height: 1.5;
+}
+
+.coach-bubble {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  padding: 8px 10px;
+  border-radius: 10px;
+  max-width: 100%;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.coach-bubble--user {
+  align-self: flex-end;
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  color: #1e3a8a;
+}
+
+.coach-bubble--assistant {
+  align-self: flex-start;
+  background: #f9fafb;
+  border: 1px solid #f3f4f6;
+  color: #374151;
+}
+
+.coach-bubble--typing {
+  font-style: italic;
+  color: #6b7280;
+}
+
+.coach-error {
+  margin-bottom: 8px;
+}
+
+.coach-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+textarea.coach-input {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 0.875rem;
+  padding: 10px 12px;
+  border: 1px solid #d4d4d8;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+textarea.coach-input:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+  border-color: #2563eb;
+  background: #fff;
+}
+
+textarea.coach-input:disabled {
+  opacity: 0.65;
+}
+
+.coach-send {
+  align-self: flex-end;
+  min-width: 88px;
+}

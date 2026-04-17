@@ -9,6 +9,11 @@ export default defineConfig({
         target: "http://localhost:8080",
         changeOrigin: true,
       },
+      "/coach": {
+        target: "http://localhost:8090",
+        changeOrigin: true,
+      },
+      /* If you change COACH_PORT in run-local.sh, update the port above to match. */
     },
   },
 });
