@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import "./App.css";
-import { apiBase, authHeader } from "./api.js";
+import { apiBase, authHeader, coachBase } from "./api.js";
 import {
   clearStoredToken,
   getStoredToken,
@@ -105,6 +105,10 @@ export default function App() {
   const [calendarBusy, setCalendarBusy] = useState(false);
   const [calendarError, setCalendarError] = useState("");
   const [serverProfile, setServerProfile] = useState("");
+  const [coachMessages, setCoachMessages] = useState([]);
+  const [coachInput, setCoachInput] = useState("");
+  const [coachLoading, setCoachLoading] = useState(false);
+  const [coachError, setCoachError] = useState("");
 
   const base = apiBase();
   const todayKey = getTodayDateKey();
@@ -120,6 +124,9 @@ export default function App() {
     setToken("");
     setMonthData({});
     setCalendarError("");
+    setCoachMessages([]);
+    setCoachInput("");
+    setCoachError("");
   }, []);
 
   const loadMonth = useCallback(async () => {
@@ -173,6 +180,57 @@ export default function App() {
     setUsername("");
     setPassword("");
     setLoginMessage("");
+  };
+
+  const sendCoachMessage = async () => {
+    if (!token || coachLoading) return;
+    const text = coachInput.trim();
+    if (!text) return;
+    setCoachError("");
+    setCoachLoading(true);
+    setCoachInput("");
+    const history = coachMessages.map(({ role, content }) => ({ role, content }));
+    setCoachMessages((prev) => [...prev, { role: "user", content: text }]);
+    try {
+      const res = await fetch(`${coachBase()}/coach/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeader(token),
+        },
+        body: JSON.stringify({
+          message: text,
+          history,
+          context_year: viewYear,
+          context_month: viewMonth,
+        }),
+      });
+      if (res.status === 401) {
+        clearAuth();
+        return;
+      }
+      const raw = await res.text();
+      if (!res.ok) {
+        let detail = "Coach request failed";
+        try {
+          const j = JSON.parse(raw);
+          if (j.detail) {
+            detail = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail);
+          }
+        } catch {
+          if (raw) detail = raw;
+        }
+        setCoachError(detail);
+        return;
+      }
+      const data = JSON.parse(raw);
+      const reply = typeof data.reply === "string" ? data.reply : "";
+      setCoachMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+    } catch (e) {
+      setCoachError(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setCoachLoading(false);
+    }
   };
 
   const cycleAttendance = async (date) => {
@@ -718,19 +776,62 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="dash-card">
-                <h3 className="dash-card-title">Plan ahead</h3>
-                <ul className="placeholder-list">
-                  <li>Workout plans and reminders will appear here.</li>
-                </ul>
-              </div>
-
-              <div className="dash-card">
-                <h3 className="dash-card-title">Coming soon</h3>
-                <div className="feature-chips">
-                  <div className="feature-chip">Weekly and yearly summaries</div>
-                  <div className="feature-chip">Insights by weekday</div>
-                  <div className="feature-chip">Export and sharing</div>
+              <div className="dash-card dash-card--coach">
+                <h3 className="dash-card-title">Plan ahead · AI coach</h3>
+                <p className="coach-lead">
+                  LangChain agent (OpenAI or Gemini) — reads your attendance via tools (no auto-logging).
+                </p>
+                <div className="feature-chips coach-feature-chips">
+                  <div className="feature-chip">Natural language</div>
+                  <div className="feature-chip">Monthly goal: {MONTHLY_GOAL} days</div>
+                  <div className="feature-chip">Read-only data access</div>
+                </div>
+                <div className="coach-thread" aria-live="polite">
+                  {coachMessages.length === 0 ? (
+                    <p className="coach-hint">
+                      Ask how you are tracking toward your goal, or which weekdays you show up most.
+                    </p>
+                  ) : (
+                    coachMessages.map((msg, i) => (
+                      <div
+                        key={`${i}-${msg.role}`}
+                        className={`coach-bubble coach-bubble--${msg.role}`}
+                      >
+                        {msg.content}
+                      </div>
+                    ))
+                  )}
+                  {coachLoading ? (
+                    <div className="coach-bubble coach-bubble--assistant coach-bubble--typing">
+                      Thinking…
+                    </div>
+                  ) : null}
+                </div>
+                {coachError ? <div className="message error coach-error">{coachError}</div> : null}
+                <div className="coach-composer">
+                  <textarea
+                    className="coach-input"
+                    rows={3}
+                    placeholder="Message the coach…"
+                    value={coachInput}
+                    disabled={coachLoading}
+                    onChange={(e) => setCoachInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        void sendCoachMessage();
+                      }
+                    }}
+                    aria-label="Coach message"
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-primary coach-send"
+                    disabled={coachLoading || !coachInput.trim()}
+                    onClick={() => void sendCoachMessage()}
+                  >
+                    Send
+                  </button>
                 </div>
               </div>
             </aside>

@@ -12,7 +12,7 @@ Simple working project with:
 - Java 17+ installed
 - Maven installed globally (`mvn --version`)
 - Node.js 18+ and npm (for the React frontend)
-- Python 3 (optional; only for serving the vanilla backup)
+- Python 3.10+ (optional: **AI coach** in `coach/` and the vanilla static demo)
 - MySQL running locally
 
 ## Default login
@@ -48,7 +48,13 @@ From the repository root, with MySQL already running:
 ./run-local.sh
 ```
 
-This starts the Spring Boot API on port **8080**, then the Vite dev server; open [http://localhost:5173/](http://localhost:5173/). For backend-only or frontend-only, run `./run-local.sh --help`.
+This starts the Spring Boot API on port **8080**, the **LangChain coach** on port **8090** (Python venv + `pip` deps), then the Vite dev server; open [http://localhost:5173/](http://localhost:5173/). For backend-only or frontend-only, run `./run-local.sh --help`.
+
+### AI coach (optional)
+
+The dashboard **Plan ahead · AI coach** panel calls `POST /coach/chat`, proxied in dev to the coach service. Configure `coach/.env` (copy from `coach/.env.example`): set **`OPENAI_API_KEY`** and/or **`GEMINI_API_KEY`**, and optionally **`LLM_PROVIDER`** (`auto` prefers OpenAI when both keys exist). See **`coach/README.md`**. Check **`GET http://localhost:8090/coach/health`** after startup.
+
+If `pip` is not on your PATH, use **`python3 -m pip install -r coach/requirements.txt`** with the interpreter in `coach/.venv` (see `coach/README.md`).
 
 ## Run frontend (Node.js + npm)
 

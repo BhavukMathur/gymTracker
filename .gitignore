@@ -34,3 +34,9 @@ Thumbs.db
 *.log
 *.tmp
 *.temp
+
+# Python coach service
+coach/.venv/
+coach/.env
+coach/**/__pycache__/
+coach/**/*.pyc
