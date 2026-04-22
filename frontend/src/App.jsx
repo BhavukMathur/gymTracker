@@ -109,6 +109,8 @@ export default function App() {
   const [coachInput, setCoachInput] = useState("");
   const [coachLoading, setCoachLoading] = useState(false);
   const [coachError, setCoachError] = useState("");
+  const [healthTipText, setHealthTipText] = useState(null);
+  const [healthTipStatus, setHealthTipStatus] = useState("idle");
 
   const base = apiBase();
   const todayKey = getTodayDateKey();
@@ -464,6 +466,40 @@ export default function App() {
     };
   }, [token, base]);
 
+  useEffect(() => {
+    if (!token) {
+      setHealthTipText(null);
+      setHealthTipStatus("idle");
+      return;
+    }
+    let cancelled = false;
+    setHealthTipText(null);
+    setHealthTipStatus("loading");
+    void (async () => {
+      try {
+        const res = await fetch(`${base}/api/health-tips`);
+        if (cancelled) return;
+        if (!res.ok) {
+          setHealthTipStatus("error");
+          return;
+        }
+        const data = await res.json();
+        if (cancelled) return;
+        if (data && typeof data.tip === "string" && data.tip.trim()) {
+          setHealthTipText(data.tip);
+          setHealthTipStatus("ok");
+        } else {
+          setHealthTipStatus("error");
+        }
+      } catch {
+        if (!cancelled) setHealthTipStatus("error");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token, base]);
+
   return (
     <div className={`app-shell ${loggedIn ? "app-shell--wide" : ""}`}>
       <header className="app-header">
@@ -745,11 +781,21 @@ export default function App() {
             <aside className="dash-sidebar dash-sidebar--right">
               <div className="dash-card">
                 <h3 className="dash-card-title">Suggestions</h3>
-                <ul className="insight-list">
-                  <li>Mark rest days as “No” so your month stays honest.</li>
-                  <li>Use “Mark today present” after your session for a one-tap log.</li>
-                  <li>Switch months with the arrows to review past consistency.</li>
-                </ul>
+                {healthTipStatus === "loading" || healthTipStatus === "idle" ? (
+                  <p className="health-tip health-tip--loading" aria-live="polite">
+                    Loading a wellness tip…
+                  </p>
+                ) : healthTipStatus === "ok" && healthTipText ? (
+                  <p className="health-tip" aria-live="polite">
+                    {healthTipText}
+                  </p>
+                ) : (
+                  <ul className="insight-list" aria-live="polite">
+                    <li>Mark rest days as “No” so your month stays honest.</li>
+                    <li>Use “Mark today present” after your session for a one-tap log.</li>
+                    <li>Switch months with the arrows to review past consistency.</li>
+                  </ul>
+                )}
               </div>
 
               <div className="dash-card">

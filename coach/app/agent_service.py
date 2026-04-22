@@ -17,14 +17,26 @@ logger = logging.getLogger(__name__)
 
 COACH_SYSTEM = """You are a supportive coach for the Gym Tracker app.
 The user's monthly attendance goal is {monthly_goal} days marked present.
-You have tools to read their logged attendance only (read-only). You cannot log or change days.
+You have read-only tools: (1) attendance for a **calendar month**, (2) attendance in a **rolling day window** up to today, and (3) a **random general health tip** from a static list (not computed from the user's data). You cannot log or change days.
 
-Rules for tools:
-- When discussing a specific month, you MUST call fetch_month_attendance with integer year and month (1–12; April = 4).
-- A successful tool response includes "entries" (date → present/missed). An empty entries object means no days were logged yet — that is normal, not a system failure.
-- If the tool JSON contains "error": "unauthorized", tell them to log out and log in again (JWT expired or invalid).
-- If the tool JSON contains "error": "http_error", the API could not be reached; mention checking that the backend is running and BACKEND_URL in coach settings.
-- Do not claim a retrieval failure if you received a normal tool payload with entries (even empty).
+## Which attendance tool to call (pick one per question unless the user clearly asks to compare two windows)
+- A **named calendar month** (e.g. "April 2025", "this month" with calendar open): use **fetch_month_attendance** with year and month (1–12; April = 4).
+- **Recent** activity without a named month (e.g. "lately", "past week", "last 30 days" in a rolling sense): use **fetch_rolling_attendance** with **days** (e.g. 7, 14, 30). The window is the last N **calendar** days through **today** (server time), not the calendar month.
+- Do not call both month and rolling in one answer unless the user explicitly asks to compare a month to a recent window.
+
+## Stitched flow (data → optional tip)
+1. If the user needs their **own numbers** for the question, call the **right attendance tool first** and answer from that JSON (counts, entries, empty = no logs in range — that is normal).
+2. If it fits the same reply (e.g. they want encouragement, ideas, or a rounded-out answer), you **may** call **fetch_health_tip** **after** the attendance result to add a **short** add-on. Say clearly the tip is a **general** wellness habit, not derived from their calendar.
+3. If they only want a **quick idea** or a tip with no attendance context, you may use **only fetch_health_tip** (one call).
+4. If attendance returns **"error": "unauthorized"**, say to log in again; do not imply tips fix auth. You may still offer fetch_health_tip only if a generic tip is appropriate after explaining the data issue.
+5. If a tool returns **"error": "http_error"**, say the app backend may be unreachable (BACKEND_URL / coach); only call other tools if they are likely to succeed (e.g. health tips use the same server).
+
+**fetch_health_tip** returns random static text. Never claim it is personalized, predicted from their streak, or based on their logs.
+
+## Tool payloads
+- **Month/rolling** responses include "entries" when relevant (date → true present / false missed), plus count fields. Rolling also has startDate, endDate, days, presentDays/markedDays (or present_days in augmented form).
+- Empty entries for a range means nothing logged in that range — not a system failure.
+- For **fetch_health_tip**, a normal response includes a "tip" string.
 
 Be concise, practical, and encouraging."""
 
@@ -116,7 +128,83 @@ def _build_tools(jwt_token: str, backend_url: str):
             logger.warning("fetch_month_attendance HTTP error: %s", e)
             return json.dumps({"error": "http_error", "detail": str(e)})
 
-    return [fetch_month_attendance]
+    @tool
+    def fetch_rolling_attendance(days: int) -> str:
+        """Load this user's gym attendance for the last N calendar days through today (read-only).
+
+        Use for questions about recent habits, the past week, or a rolling "last 30 days" (not a named
+        month). Prefer fetch_month_attendance for a specific calendar year/month.
+
+        Args:
+            days: Window length, 1–366 (e.g. 7 for last week, 30 for last 30 days).
+
+        Returns:
+            JSON with startDate, endDate, days, presentDays, markedDays, and entries (date string →
+            true if present, false if missed). Omitted dates have no log.
+        """
+        d = int(days) if days is not None else 30
+        d = max(1, min(366, d))
+        try:
+            r = httpx.get(
+                f"{base}/api/attendance/rolling",
+                params={"days": d},
+                headers={"Authorization": f"Bearer {jwt_token}"},
+                timeout=20.0,
+            )
+            if r.status_code == 401:
+                logger.info("fetch_rolling_attendance unauthorized days=%s backend=%s", d, base)
+                return json.dumps({"error": "unauthorized", "detail": "JWT rejected by API"})
+            if r.status_code != 200:
+                logger.warning("fetch_rolling_attendance bad status days=%s status=%s", d, r.status_code)
+            r.raise_for_status()
+            raw = r.json()
+            if not isinstance(raw, dict):
+                raw = {}
+            entries = raw.get("entries")
+            if not isinstance(entries, dict):
+                entries = {}
+            present_days = sum(1 for v in entries.values() if v is True)
+            marked_days = len(entries)
+            try:
+                present_days = int(raw.get("presentDays", present_days))
+                marked_days = int(raw.get("markedDays", marked_days))
+            except (TypeError, ValueError):
+                pass
+            payload = {
+                **raw,
+                "entries": entries,
+                "present_days": present_days,
+                "marked_days": marked_days,
+            }
+            logger.info(
+                "fetch_rolling_attendance ok days=%s present_days=%s marked_days=%s",
+                raw.get("days", d),
+                present_days,
+                marked_days,
+            )
+            return json.dumps(payload)
+        except httpx.HTTPError as e:
+            logger.warning("fetch_rolling_attendance HTTP error: %s", e)
+            return json.dumps({"error": "http_error", "detail": str(e)})
+
+    @tool
+    def fetch_health_tip() -> str:
+        """Get one random general wellness tip from a static list (read-only, not derived from the user)."""
+        try:
+            r = httpx.get(f"{base}/api/health-tips", timeout=15.0)
+            if r.status_code != 200:
+                logger.warning("fetch_health_tip bad status status=%s", r.status_code)
+            r.raise_for_status()
+            data = r.json()
+            if not isinstance(data, dict) or "tip" not in data:
+                return json.dumps({"error": "http_error", "detail": "Invalid health tips response"})
+            logger.info("fetch_health_tip ok")
+            return json.dumps(data)
+        except httpx.HTTPError as e:
+            logger.warning("fetch_health_tip HTTP error: %s", e)
+            return json.dumps({"error": "http_error", "detail": str(e)})
+
+    return [fetch_month_attendance, fetch_rolling_attendance, fetch_health_tip]
 
 
 def run_coach_turn(
@@ -154,7 +242,7 @@ def run_coach_turn(
 
     result = agent.invoke(
         {"messages": messages},
-        config={"recursion_limit": 35},
+        config={"recursion_limit": 45},
     )
     return _final_ai_text(result)
 
