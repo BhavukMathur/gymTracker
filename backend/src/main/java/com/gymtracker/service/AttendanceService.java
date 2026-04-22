@@ -2,6 +2,7 @@ package com.gymtracker.service;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -9,6 +10,7 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 
 import com.gymtracker.dto.AttendanceRequest;
+import com.gymtracker.dto.RollingWindowAttendanceResponse;
 import com.gymtracker.graphql.dto.AttendanceDay;
 import com.gymtracker.model.Attendance;
 import com.gymtracker.model.User;
@@ -50,6 +52,38 @@ public class AttendanceService {
         attendanceRepository.findByUserAndAttendanceDateBetween(user, start, end)
                 .forEach(record -> attendanceMap.put(record.getAttendanceDate().toString(), record.isAttended()));
         return attendanceMap;
+    }
+
+    /**
+     * Attendance in the last {@code days} calendar days ending on today (inclusive). The {@code days} value is
+     * clamped to {@code [1, 366]}. Dates with no database row are omitted from {@code entries} (same as the month
+     * endpoint). Server uses the JVM default time zone for "today."
+     */
+    public RollingWindowAttendanceResponse getRollingWindow(User user, int days) {
+        int windowLength = Math.min(366, Math.max(1, days));
+        LocalDate end = LocalDate.now();
+        LocalDate start = end.minusDays(windowLength - 1L);
+
+        List<Attendance> list = attendanceRepository.findByUserAndAttendanceDateBetween(user, start, end);
+        list.sort(Comparator.comparing(Attendance::getAttendanceDate));
+
+        Map<String, Boolean> entries = new LinkedHashMap<>();
+        int present = 0;
+        for (Attendance a : list) {
+            String key = a.getAttendanceDate().toString();
+            boolean att = a.isAttended();
+            entries.put(key, att);
+            if (att) {
+                present++;
+            }
+        }
+        return new RollingWindowAttendanceResponse(
+                start.toString(),
+                end.toString(),
+                windowLength,
+                present,
+                entries.size(),
+                entries);
     }
 
     public List<AttendanceDay> listAttendanceDays(User user, int year, int month) {
