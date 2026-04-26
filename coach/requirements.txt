@@ -7,3 +7,6 @@ langchain>=1.0
 langchain-openai>=0.3
 langchain-google-genai>=2.0
 langchain-core>=0.3
+
+# stdio MCP server (Cursor): python -m app.mcp_server
+mcp>=1.0
