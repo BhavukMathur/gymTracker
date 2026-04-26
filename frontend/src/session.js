@@ -31,3 +31,29 @@ export function getUsernameFromToken(token) {
     return "";
   }
 }
+
+/**
+ * Read `roles` from JWT (no verification). New logins include roles; older sessions may be empty.
+ * @returns {string[]}
+ */
+export function getRolesFromToken(token) {
+  if (!token) return [];
+  try {
+    const segment = token.split(".")[1];
+    if (!segment) return [];
+    const base64 = segment.replace(/-/g, "+").replace(/_/g, "/");
+    const pad = (4 - (base64.length % 4)) % 4;
+    const padded = base64 + "=".repeat(pad);
+    const binary = atob(padded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const payload = JSON.parse(new TextDecoder().decode(bytes));
+    const roles = payload.roles;
+    if (Array.isArray(roles)) {
+      return roles.filter((r) => typeof r === "string");
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}

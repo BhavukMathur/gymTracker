@@ -100,3 +100,107 @@ body {
 .hidden {
   display: none !important;
 }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+  white-space: nowrap;
+}
+
+/* Full-width row in the dashboard grid (announcements) */
+.app-main--dashboard .announcement-board,
+.app-main--dashboard .announcement-board--error,
+.app-main--dashboard .announcement-board--loading {
+  grid-column: 1 / -1;
+}
+
+.announcement-board {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.announcement-item {
+  background: #fff;
+  border-radius: 12px;
+  padding: 14px 16px;
+  border: 1px solid #c7d2fe;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.12);
+}
+
+.announcement-title {
+  margin: 0 0 6px;
+  font-size: 1.02rem;
+  color: #312e81;
+}
+
+.announcement-body {
+  margin: 0;
+  color: #1f2937;
+  font-size: 0.95rem;
+  white-space: pre-wrap;
+}
+
+.announcement-meta {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.announcement-board--error {
+  max-width: 100%;
+  margin: 0;
+}
+
+.announcement-board--loading {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #6b7280;
+  padding: 0 2px;
+}
+
+/* Admin page (not in grid) */
+.admin-announcements {
+  max-width: 640px;
+  width: 100%;
+  margin: 0 auto;
+  align-self: center;
+}
+
+.admin-announcements h2 {
+  margin: 0 0 8px;
+  font-size: 1.25rem;
+  color: #111827;
+}
+
+.admin-lead {
+  margin: 0 0 16px;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.admin-body-input {
+  width: 100%;
+  min-height: 120px;
+  padding: 10px 12px;
+  border: 1px solid #d4d4d8;
+  border-radius: 10px;
+  font-size: 16px;
+  font-family: inherit;
+  line-height: 1.4;
+  resize: vertical;
+  background: #fafafa;
+}
+
+.admin-body-input:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+  border-color: #2563eb;
+  background: #fff;
+}
