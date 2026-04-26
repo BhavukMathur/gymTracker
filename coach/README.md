@@ -42,3 +42,16 @@ uvicorn app.main:app --host 127.0.0.1 --port 8090
 
 - `GET /coach/health` — status, resolved `llm_provider`, and which keys are present
 - `POST /coach/chat` — body: `{ "message": string, "history": [{ "role": "user"|"assistant", "content": string }] }`, header: `Authorization: Bearer <JWT>`
+
+## MCP (Cursor): month attendance
+
+A small **stdio** MCP server exposes `fetch_month_attendance` so Cursor’s agent can call the same Spring endpoint as the coach tools.
+
+1. Install deps (includes `mcp`): `pip install -r requirements.txt` inside `coach/` (venv).
+2. Add **`GYMTRACKER_MCP_JWT`** (same Bearer token as the web app after login) and **`BACKEND_URL`** if needed to `coach/.env` (see `.env.example`).
+3. **Project MCP:** this repo includes `.cursor/mcp.json`, which runs `python -m app.mcp_server` with `cwd` = `coach/`, sets **`PYTHONPATH`** to `coach/` (some Cursor builds do not honor `cwd` for stdio MCP, which caused `ModuleNotFoundError: No module named 'app'`), and loads `coach/.env` via `envFile`. Reload MCP in Cursor after changing env.
+4. Start the Spring backend on the URL in `BACKEND_URL`.
+
+For a portable snippet without `envFile`, see `coach/cursor-mcp.example.json` and set `env` explicitly.
+
+Run locally without Cursor: `python -m app.mcp_server` (stdio MCP; use an MCP client to drive it).

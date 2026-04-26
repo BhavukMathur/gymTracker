@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "gym-tracker": {
+      "type": "stdio",
+      "command": "${workspaceFolder}/coach/.venv/bin/python",
+      "args": ["-m", "app.mcp_server"],
+      "cwd": "${workspaceFolder}/coach",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/coach"
+      },
+      "envFile": "${workspaceFolder}/coach/.env"
+    }
+  }
+}
