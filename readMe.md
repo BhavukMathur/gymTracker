@@ -40,15 +40,17 @@ Configured in `backend/src/main/resources/application.properties`:
 - password: `rootroot`
 - db: `gymtracker` (auto-created if not exists)
 
-## Run locally (single command, no Docker)
+## Run locally (single command: `./run-local.sh`)
 
-From the repository root, with MySQL already running:
+From the repository root, with **MySQL** already on **127.0.0.1:3306** (as in the table here):
 
 ```bash
 ./run-local.sh
 ```
 
-This starts the Spring Boot API on port **8080**, the **LangChain coach** on port **8090** (Python venv + `pip` deps), then the Vite dev server; open [http://localhost:5173/](http://localhost:5173/). For backend-only or frontend-only, run `./run-local.sh --help`.
+The script also brings up **ZooKeeper + Kafka** in Docker (unless something already listens on **127.0.0.1:9092** or you set `SKIP_KAFKA=1`) so the announcements feature can talk to a local broker. Details and options are in **[kafka.md](kafka.md)**.
+
+It then starts the Spring Boot API on port **8080**, the **LangChain coach** on port **8090** (Python venv + `pip` deps), and the Vite dev server; open [http://localhost:5173/](http://localhost:5173/). For backend-only or frontend-only, run `./run-local.sh --help`. Use **Docker** (Desktop or engine) for the embedded Kafka start; the Spring process itself still runs on the host via Maven, not in a container.
 
 ### AI coach (optional)
 

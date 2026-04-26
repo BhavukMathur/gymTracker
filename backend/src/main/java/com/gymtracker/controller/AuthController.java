@@ -21,6 +21,7 @@ import com.gymtracker.dto.LoginRequest;
 import com.gymtracker.dto.LoginResponse;
 import com.gymtracker.dto.RegisterRequest;
 import com.gymtracker.model.User;
+import com.gymtracker.model.UserRole;
 import com.gymtracker.repository.UserRepository;
 import com.gymtracker.security.JwtUtil;
 
@@ -76,6 +77,7 @@ public class AuthController {
         User user = new User();
         user.setUsername(request.getUsername());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setRole(UserRole.USER);
         userRepository.save(user);
 
         log.info("[SLF4J] register success username={}", user.getUsername());

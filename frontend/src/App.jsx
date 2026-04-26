@@ -3,6 +3,7 @@ import "./App.css";
 import { apiBase, authHeader, coachBase } from "./api.js";
 import {
   clearStoredToken,
+  getRolesFromToken,
   getStoredToken,
   getUsernameFromToken,
   setStoredToken,
@@ -111,6 +112,14 @@ export default function App() {
   const [coachError, setCoachError] = useState("");
   const [healthTipText, setHealthTipText] = useState(null);
   const [healthTipStatus, setHealthTipStatus] = useState("idle");
+  const [appView, setAppView] = useState("home");
+  const [announcements, setAnnouncements] = useState([]);
+  const [announcementStatus, setAnnouncementStatus] = useState("idle");
+  const [adminTitle, setAdminTitle] = useState("");
+  const [adminBody, setAdminBody] = useState("");
+  const [adminSubmitting, setAdminSubmitting] = useState(false);
+  const [adminMessage, setAdminMessage] = useState("");
+  const [adminError, setAdminError] = useState("");
 
   const base = apiBase();
   const todayKey = getTodayDateKey();
@@ -121,6 +130,11 @@ export default function App() {
     [sessionUser]
   );
 
+  const isAdmin = useMemo(
+    () => getRolesFromToken(token).includes("ROLE_ADMIN"),
+    [token]
+  );
+
   const clearAuth = useCallback(() => {
     clearStoredToken();
     setToken("");
@@ -129,6 +143,9 @@ export default function App() {
     setCoachMessages([]);
     setCoachInput("");
     setCoachError("");
+    setAppView("home");
+    setAnnouncements([]);
+    setAnnouncementStatus("idle");
   }, []);
 
   const loadMonth = useCallback(async () => {
@@ -421,7 +438,57 @@ export default function App() {
     Math.round((dashboardStats.present / MONTHLY_GOAL) * 100)
   );
 
+  const submitAdminAnnouncement = useCallback(async () => {
+    if (!token || !adminTitle.trim() || !adminBody.trim() || adminSubmitting) {
+      return;
+    }
+    setAdminError("");
+    setAdminMessage("");
+    setAdminSubmitting(true);
+    try {
+      const res = await fetch(`${base}/api/admin/announcements`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader(token) },
+        body: JSON.stringify({ title: adminTitle.trim(), body: adminBody.trim() }),
+      });
+      if (res.status === 401) {
+        clearAuth();
+        return;
+      }
+      if (res.status === 403) {
+        setAdminError("Not authorized as admin. Log in as the admin user.");
+        return;
+      }
+      if (res.status === 503) {
+        setAdminError(
+          "Message broker unavailable. Is Kafka running on 127.0.0.1:9092 (or your compose stack)?"
+        );
+        return;
+      }
+      if (!res.ok) {
+        setAdminError("Could not publish the announcement.");
+        return;
+      }
+      const data = await res.json();
+      if (data && typeof data.message === "string") {
+        setAdminMessage(data.message);
+      } else {
+        setAdminMessage("Event accepted for processing.");
+      }
+      setAdminTitle("");
+      setAdminBody("");
+      // Allow the Kafka consumer to write to the DB before the home view refetches.
+      await new Promise((r) => setTimeout(r, 800));
+      setAppView("home");
+    } catch (e) {
+      setAdminError(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setAdminSubmitting(false);
+    }
+  }, [adminBody, adminSubmitting, adminTitle, base, clearAuth, token]);
+
   const loggedIn = Boolean(token);
+  const showAdminView = Boolean(loggedIn && appView === "admin" && isAdmin);
   const todayInView = useMemo(() => {
     const [ty, tm] = todayKey.split("-").map(Number);
     return ty === viewYear && tm === viewMonth;
@@ -467,6 +534,44 @@ export default function App() {
   }, [token, base]);
 
   useEffect(() => {
+    if (appView === "admin" && !isAdmin) {
+      setAppView("home");
+    }
+  }, [appView, isAdmin]);
+
+  useEffect(() => {
+    if (!token) {
+      setAnnouncements([]);
+      setAnnouncementStatus("idle");
+      return;
+    }
+    if (appView !== "home") {
+      return;
+    }
+    let cancelled = false;
+    setAnnouncementStatus("loading");
+    void (async () => {
+      const res = await fetch(`${base}/api/announcements`, { headers: authHeader(token) });
+      if (cancelled) return;
+      if (res.status === 401) {
+        clearAuth();
+        return;
+      }
+      if (!res.ok) {
+        setAnnouncementStatus("error");
+        return;
+      }
+      const data = await res.json();
+      if (cancelled) return;
+      setAnnouncements(Array.isArray(data) ? data : []);
+      setAnnouncementStatus("ok");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token, appView, base, clearAuth]);
+
+  useEffect(() => {
     if (!token) {
       setHealthTipText(null);
       setHealthTipStatus("idle");
@@ -507,7 +612,9 @@ export default function App() {
         <p className="tagline">Track workouts by day</p>
       </header>
 
-      <main className={`app-main ${loggedIn ? "app-main--dashboard" : ""}`}>
+      <main
+        className={`app-main ${loggedIn && !showAdminView ? "app-main--dashboard" : ""}`}
+      >
         <div className={loggedIn ? "hidden" : "card"}>
           <h3>Login</h3>
           <form
@@ -553,8 +660,100 @@ export default function App() {
           ) : null}
         </div>
 
-        {loggedIn ? (
+        {showAdminView ? (
+          <section className="card admin-announcements" aria-label="Admin announcements">
+            <h2>Publish announcement</h2>
+            <p className="admin-lead">
+              Publishes through Kafka; members see it on the dashboard after the consumer stores it
+              (usually under a second).
+            </p>
+            <form
+              className="row stack-sm admin-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void submitAdminAnnouncement();
+              }}
+            >
+              <label>
+                <span className="sr-only">Title</span>
+                <input
+                  type="text"
+                  name="gym-admin-announcement-title"
+                  value={adminTitle}
+                  onChange={(e) => setAdminTitle(e.target.value)}
+                  placeholder="Title"
+                  maxLength={200}
+                  autoComplete="off"
+                />
+              </label>
+              <label>
+                <span className="sr-only">Message</span>
+                <textarea
+                  className="admin-body-input"
+                  rows={6}
+                  name="gym-admin-announcement-body"
+                  value={adminBody}
+                  onChange={(e) => setAdminBody(e.target.value)}
+                  placeholder="Message for members (shown on the home dashboard)"
+                  maxLength={8000}
+                />
+              </label>
+              <div className="row btn-row">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setAppView("home");
+                    setAdminError("");
+                    setAdminMessage("");
+                  }}
+                >
+                  Back to dashboard
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={
+                    adminSubmitting || !adminTitle.trim() || !adminBody.trim()
+                  }
+                >
+                  {adminSubmitting ? "Publishing…" : "Publish"}
+                </button>
+              </div>
+            </form>
+            {adminError ? <div className="message error">{adminError}</div> : null}
+            {adminMessage ? <div className="message">{adminMessage}</div> : null}
+          </section>
+        ) : null}
+
+        {loggedIn && !showAdminView ? (
           <>
+            {announcementStatus === "error" ? (
+              <div className="message error announcement-board--error" role="alert">
+                Could not load announcements.
+              </div>
+            ) : null}
+            {announcementStatus === "ok" && announcements.length > 0 ? (
+              <div className="announcement-board" role="region" aria-label="Announcements">
+                {announcements.map((a) => (
+                  <article key={a.id} className="announcement-item">
+                    <h3 className="announcement-title">{a.title}</h3>
+                    <p className="announcement-body">{a.body}</p>
+                    {a.createdAt ? (
+                      <p className="announcement-meta">
+                        {new Date(a.createdAt).toLocaleString()}
+                      </p>
+                    ) : null}
+                  </article>
+                ))}
+              </div>
+            ) : null}
+            {announcementStatus === "loading" && announcements.length === 0 ? (
+              <p className="announcement-board announcement-board--loading" aria-live="polite">
+                Loading announcements…
+              </p>
+            ) : null}
+
             <aside className="dash-sidebar dash-sidebar--left">
               <div className="dash-card profile-card">
                 <div className="profile-avatar" aria-hidden>
@@ -640,6 +839,19 @@ export default function App() {
               </div>
 
               <div className="sidebar-actions">
+                {isAdmin ? (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setAppView("admin");
+                      setAdminError("");
+                      setAdminMessage("");
+                    }}
+                  >
+                    Admin — announcements
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   className="btn btn-success"
