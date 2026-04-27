@@ -1,4 +1,5 @@
 const TOKEN_KEY = "gymtracker.session.token";
+const DISMISSED_ANNOUNCEMENTS_PREFIX = "gymtracker.dismissedAnnouncements.";
 
 export function getStoredToken() {
   return localStorage.getItem(TOKEN_KEY) || "";
@@ -56,4 +57,26 @@ export function getRolesFromToken(token) {
   } catch {
     return [];
   }
+}
+
+/** @returns {Set<string>} */
+export function getDismissedAnnouncementIds(username) {
+  if (!username) return new Set();
+  try {
+    const raw = localStorage.getItem(`${DISMISSED_ANNOUNCEMENTS_PREFIX}${username}`);
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.map((id) => String(id)));
+  } catch {
+    return new Set();
+  }
+}
+
+/** @param {string} username */
+export function persistDismissedAnnouncementIds(username, ids) {
+  if (!username) return;
+  localStorage.setItem(
+    `${DISMISSED_ANNOUNCEMENTS_PREFIX}${username}`,
+    JSON.stringify([...ids])
+  );
 }
