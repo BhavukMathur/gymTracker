@@ -3,9 +3,11 @@ import "./App.css";
 import { apiBase, authHeader, coachBase } from "./api.js";
 import {
   clearStoredToken,
+  getDismissedAnnouncementIds,
   getRolesFromToken,
   getStoredToken,
   getUsernameFromToken,
+  persistDismissedAnnouncementIds,
   setStoredToken,
 } from "./session.js";
 
@@ -114,6 +116,9 @@ export default function App() {
   const [healthTipStatus, setHealthTipStatus] = useState("idle");
   const [appView, setAppView] = useState("home");
   const [announcements, setAnnouncements] = useState([]);
+  const [dismissedAnnouncementIds, setDismissedAnnouncementIds] = useState(
+    () => new Set()
+  );
   const [announcementStatus, setAnnouncementStatus] = useState("idle");
   const [adminTitle, setAdminTitle] = useState("");
   const [adminBody, setAdminBody] = useState("");
@@ -134,6 +139,24 @@ export default function App() {
     () => getRolesFromToken(token).includes("ROLE_ADMIN"),
     [token]
   );
+
+  const visibleAnnouncements = useMemo(() => {
+    return announcements.filter(
+      (a) => a != null && !dismissedAnnouncementIds.has(String(a.id))
+    );
+  }, [announcements, dismissedAnnouncementIds]);
+
+  const clearAllAnnouncementsFromBoard = useCallback(() => {
+    if (!sessionUser || announcements.length === 0) return;
+    setDismissedAnnouncementIds((prev) => {
+      const next = new Set(prev);
+      for (const a of announcements) {
+        next.add(String(a.id));
+      }
+      persistDismissedAnnouncementIds(sessionUser, next);
+      return next;
+    });
+  }, [announcements, sessionUser]);
 
   const clearAuth = useCallback(() => {
     clearStoredToken();
@@ -540,6 +563,14 @@ export default function App() {
   }, [appView, isAdmin]);
 
   useEffect(() => {
+    if (!sessionUser) {
+      setDismissedAnnouncementIds(new Set());
+      return;
+    }
+    setDismissedAnnouncementIds(getDismissedAnnouncementIds(sessionUser));
+  }, [sessionUser]);
+
+  useEffect(() => {
     if (!token) {
       setAnnouncements([]);
       setAnnouncementStatus("idle");
@@ -733,9 +764,19 @@ export default function App() {
                 Could not load announcements.
               </div>
             ) : null}
-            {announcementStatus === "ok" && announcements.length > 0 ? (
+            {announcementStatus === "ok" && visibleAnnouncements.length > 0 ? (
               <div className="announcement-board" role="region" aria-label="Announcements">
-                {announcements.map((a) => (
+                <div className="announcement-board-header">
+                  <span className="announcement-board-header-label">Announcements</span>
+                  <button
+                    type="button"
+                    className="btn btn-secondary announcement-clear-all"
+                    onClick={clearAllAnnouncementsFromBoard}
+                  >
+                    Clear all
+                  </button>
+                </div>
+                {visibleAnnouncements.map((a) => (
                   <article key={a.id} className="announcement-item">
                     <h3 className="announcement-title">{a.title}</h3>
                     <p className="announcement-body">{a.body}</p>

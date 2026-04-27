@@ -126,6 +126,26 @@ body {
   gap: 12px;
 }
 
+.announcement-board-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.announcement-board-header-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+button.announcement-clear-all {
+  min-height: 38px;
+  padding: 8px 14px;
+  font-size: 0.875rem;
+}
+
 .announcement-item {
   background: #fff;
   border-radius: 12px;
